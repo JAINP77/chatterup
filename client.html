@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChatterUp</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Login Form -->
+  <div id="login-container">
+    <form id="login-form">
+      <h2>Welcome to ChatterUp</h2>
+      <label for="username">Enter your name:</label>
+      <input type="text" id="username" name="username" placeholder="Your name" required />
+      <button type="submit">Join Chat</button>
+    </form>
+  </div>
+
+  <!-- Chat Interface -->
+  <div id="chat-container">
+    <!-- Chat Area -->
+    <div id="chat-area">
+      <div id="message_list"></div>
+      <div id="input-area">
+        <input id="message_input" type="text" placeholder="Enter your message..." />
+        <button id="send_btn">Send</button>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <h3>Connected Users</h3>
+      <ul id="user_list"></ul>
+    </div>
+  </div>
+
+  <script src="http://localhost:1500/socket.io/socket.io.js"></script>
+  <script>
+    // Handle Login Form Submission
+    document.getElementById('login-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const usernameInput = document.getElementById('username');
+      const user = usernameInput.value.trim();
+
+      if (user) {
+        // Hide login form and show chat UI
+        document.getElementById('login-container').style.display = 'none';
+        document.getElementById('chat-container').style.display = 'flex';
+
+        // Connect to the socket server
+        const socket = io.connect('http://localhost:1500');
+
+        socket.emit('join', user);
+
+        const messageList = document.getElementById('message_list');
+        const welcome = document.createElement('div');
+        welcome.className = 'welcome_message';
+        welcome.innerText = `Welcome ${user}, you can start chatting!`;
+        messageList.appendChild(welcome);
+        setTimeout(() => {
+          welcome.style.display = 'none';
+        }, 3000);
+
+        // Notify about user joining
+        socket.on('notify_users', (msg) => {
+          const notifyMessage = document.createElement('div');
+          notifyMessage.className = 'notify_message';
+          notifyMessage.innerText = msg;
+          messageList.appendChild(notifyMessage);
+          setTimeout(() => {
+            notifyMessage.style.display = 'none';
+          }, 3000);
+        });
+
+        // Show active users
+        const userList = document.getElementById('user_list');
+        socket.on('broadcast_user', (usernames) => {
+          userList.innerHTML = '';
+          usernames.forEach((name) => {
+            const activeUser = document.createElement('li');
+            activeUser.innerHTML = `<span class="green_mark">●</span> ${name}`;
+            activeUser.style.color = 'green';
+            userList.appendChild(activeUser);
+          });
+        });
+
+        // Display old messages
+        socket.on('old_messages', (messages) => {
+          messages.forEach((msg) => {
+            const msgElement = document.createElement('div');
+            msgElement.className = 'message_box';
+            msgElement.innerHTML = `
+              <img class="avatar" src="${msg.profilePicture}" />
+              <div class="message_content">
+                <div class="user_stamp">
+                  <span class="name">${msg.username}</span>
+                  <span class="timestamp">${msg.timestamp}</span>
+                </div>
+                <p class="message_text">${msg.message}</p>
+              </div>`;
+            messageList.appendChild(msgElement);
+          });
+        });
+
+        // Send new message
+        const messageInput = document.getElementById('message_input');
+        const sendBtn = document.getElementById('send_btn');
+        sendBtn.addEventListener('click', () => {
+          const message = messageInput.value.trim();
+          if (message) {
+            socket.emit('new_message', message);
+
+            const msgElement = document.createElement('div');
+            msgElement.className = 'message_box';
+            msgElement.innerHTML = `
+              <img class="avatar" src="https://media1.thehungryjpeg.com/thumbs2/ori_3677422_7yqyaegyy913s21kj9b50h6m2cy996ze9924hcln_ninja-esport-mascot-logo-design.png" />
+              <div class="message_content">
+                <div class="user_stamp">
+                  <span class="name">${user}</span>
+                  <span class="timestamp">${new Date().toLocaleTimeString()}</span>
+                </div>
+                <p class="message_text">${message}</p>
+              </div>`;
+            messageList.appendChild(msgElement);
+            messageInput.value = '';
+          }
+        });
+
+        // Display broadcasted messages
+        socket.on('broadcast_message', (message) => {
+          const msgElement = document.createElement('div');
+          msgElement.className = 'message_box';
+          msgElement.innerHTML = `
+            <img class="avatar" src="${message.profilePicture}" />
+            <div class="message_content">
+              <div class="user_stamp">
+                <span class="name">${message.username}</span>
+                <span class="timestamp">${message.timestamp}</span>
+              </div>
+              <p class="message_text">${message.message}</p>
+            </div>`;
+          messageList.appendChild(msgElement);
+        });
+
+        // Typing indicator
+        messageInput.addEventListener('input', () => {
+          socket.emit('typing', user);
+        });
+
+        const typingIndicator = document.createElement('div');
+        typingIndicator.className = 'typing_indicator';
+        typingIndicator.style.display = 'none';
+        messageList.appendChild(typingIndicator);
+
+        socket.on('broadcast_typing', (typingUser) => {
+          typingIndicator.innerText = `${typingUser} is typing...`;
+          typingIndicator.style.display = 'block';
+          setTimeout(() => {
+            typingIndicator.style.display = 'none';
+          }, 3000);
+        });
+      }
+    });
+  </script>
+</body>
+</html>

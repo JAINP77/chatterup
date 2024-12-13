@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChatterUp</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="chat-container">
+    <!-- Chat Area -->
+    <div id="chat-area">
+      <!-- Messages -->
+      <div id="message_list">
+        <!-- all messages goes here -->
+      </div>
+
+      <!-- Input -->
+      <div id="input-area">
+        <input id="message_input" type="text" placeholder="Enter your message..." />
+        <button id="send_btn">Send</button>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <h3>Connected Users</h3>
+      <ul id="user_list">
+        <!-- active users will go here -->
+      </ul>
+    </div>
+  </div>  
+
+  <script src="http://localhost:1500/socket.io/socket.io.js"></script>
+
+  <script>
+    //connect socket to server
+        const socket = io.connect('http://localhost:1500');
+        //login for user
+        const user = prompt('please enter your name');
+        if (user==null) {
+            throw new Error("username required");            ;
+        }
+
+        socket.emit('join',user);
+
+        const messageList = document.getElementById('message_list');
+        //welcome message
+          const welcome = document.createElement('div');
+          welcome.className = 'welcome_message';
+          welcome.innerText = `Welcome ${user},you can start chat`;
+          messageList.appendChild(welcome);
+          setTimeout(() => { 
+            welcome.style.display = 'none'
+              }, 3000);
+
+        //active users
+        const userList = document.getElementById('user_list');
+        const active = document.createElement('li');
+        active.innerText = `${user}`;
+        active.style.color = 'green';
+        userList.appendChild(active);
+        
+        //fetching elements
+        const messageInput = document.getElementById('message_input');
+        messageInput.focus();
+        const sendBtn = document.getElementById('send_btn');
+
+        //send message
+        sendBtn.addEventListener('click', () => {
+            const message = messageInput.value.trim();
+            if (message) {
+              socket.emit('new_message', message);
+
+              const msgElement = document.createElement('div');
+              msgElement.className = 'message_box';
+
+              const avatarEl = document.createElement('img');
+              avatarEl.className = 'avatar';
+              avatarEl.src = 'https://media1.thehungryjpeg.com/thumbs2/ori_3677422_7yqyaegyy913s21kj9b50h6m2cy996ze9924hcln_ninja-esport-mascot-logo-design.png';
+
+              const messageContent = document.createElement('div');
+              messageContent.className = 'message_content';
+
+              const userStamp = document.createElement('div');
+              userStamp.className = 'user_stamp';
+
+              const name = document.createElement('span');
+              name.className = 'name';
+              name.innerText = user;
+
+              const timestamp = document.createElement('span');
+              timestamp.className = 'timestamp';
+              timestamp.innerText = new Date().toLocaleTimeString();
+
+              userStamp.appendChild(name);
+              userStamp.appendChild(timestamp);
+
+              const msg = document.createElement('p');
+              msg.className = 'message_text';
+              msg.innerText = message;
+
+              messageContent.appendChild(userStamp);
+              messageContent.appendChild(msg);
+
+              msgElement.appendChild(avatarEl);
+              msgElement.appendChild(messageContent);
+
+              messageList.appendChild(msgElement);
+
+              messageInput.value = '';
+            }
+          });
+
+          // broadcast messages
+          socket.on('broadcast_message',(message)=>{
+              const msgElement = document.createElement('div');
+              msgElement.className = 'message_box';
+
+              const avatarEl = document.createElement('img');
+              avatarEl.className = 'avatar';
+              avatarEl.src = message.profilePicture;
+              const messageContent = document.createElement('div');
+              messageContent.className = 'message_content';
+
+              const userStamp = document.createElement('div');
+              userStamp.className = 'user_stamp';
+
+              const name = document.createElement('span');
+              name.className = 'name';
+              name.innerText = message.username;
+
+              const timestamp = document.createElement('span');
+              timestamp.className = 'timestamp';
+              timestamp.innerText = message.timestamp;
+              userStamp.appendChild(name);
+              userStamp.appendChild(timestamp);
+
+              const msg = document.createElement('p');
+              msg.className = 'message_text';
+              msg.innerText = message.message;
+
+              messageContent.appendChild(userStamp);
+              messageContent.appendChild(msg);
+
+              msgElement.appendChild(avatarEl);
+              msgElement.appendChild(messageContent);
+
+              messageList.appendChild(msgElement);
+          })
+
+          //broadcast active users
+          socket.on('broadcast_user', (usernames) => {
+              // Clear existing list before appending new active users 
+              userList.innerHTML = '';
+              usernames.forEach((user) => {
+                const active = document.createElement('li');
+
+                // Create a green mark
+                const greenMark = document.createElement('span');
+                greenMark.className = 'green_mark';
+                greenMark.innerText = '●';
+
+                const userNameSpan = document.createElement('span');
+                userNameSpan.innerText = ` ${user}`;
+
+                active.appendChild(greenMark);
+                active.appendChild(userNameSpan);
+
+                userList.appendChild(active);
+              });
+          });
+
+          //load old messages
+          socket.on('old_messages',(messages)=>{
+            messages.forEach((message)=>{
+              const msgElement = document.createElement('div');
+              msgElement.className = 'message_box';
+
+              const avatarEl = document.createElement('img');
+              avatarEl.className = 'avatar';
+              avatarEl.src = message.profilePicture;
+              const messageContent = document.createElement('div');
+              messageContent.className = 'message_content';
+
+              const userStamp = document.createElement('div');
+              userStamp.className = 'user_stamp';
+
+              const name = document.createElement('span');
+              name.className = 'name';
+              name.innerText = message.username;
+
+              const timestamp = document.createElement('span');
+              timestamp.className = 'timestamp';
+              timestamp.innerText = message.timestamp;
+              userStamp.appendChild(name);
+              userStamp.appendChild(timestamp);
+
+              const msg = document.createElement('p');
+              msg.className = 'message_text';
+              msg.innerText = message.message;
+
+              messageContent.appendChild(userStamp);
+              messageContent.appendChild(msg);
+
+              msgElement.appendChild(avatarEl);
+              msgElement.appendChild(messageContent);
+
+              messageList.appendChild(msgElement);
+            })
+          })
+
+          // typing indicator
+          messageInput.addEventListener('input',()=>{
+            socket.emit('typing',user);
+          })
+
+          const typingIndicator = document.createElement('div');
+          typingIndicator.className = 'typing_indicator';
+          messageList.appendChild(typingIndicator);
+          typingIndicator.style.display = 'none';
+
+          socket.on('broadcast_typing',(user)=>{
+          typingIndicator.innerText = `${user} is typing`;
+            typingIndicator.style.display = 'block';
+            setTimeout(() => { typingIndicator.style.display = 'none'; 
+            }, 3000);
+          })
+  </script>
+</body>
+</html>
